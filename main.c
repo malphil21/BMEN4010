@@ -53,6 +53,8 @@ TIM_HandleTypeDef htim1;
 uint8_t heating = 0;
 uint16_t tmp = 0;
 uint16_t PWM_state = 0;
+uint8_t button_state = 0;
+uint8_t PWM_button = 0;
 //uint8_t msg[] = "Initial Message";
 //uint32_t value_dac=0;
 /* USER CODE END PV */
@@ -75,7 +77,7 @@ static void MX_ADC2_Init(void);
 void Gen_PWM1(uint16_t us){
 	__HAL_TIM_SET_COUNTER(&htim1,0); //reset the timer counter
 	HAL_TIM_Base_Start(&htim1); //start the timer
-	while (__HAL_TIM_GET_COUNTER(&htim1) < us-1);  // wait for the counter to reach the us value provided as an argument
+	while (__HAL_TIM_GET_COUNTER(&htim1) < us-10);  // wait for the counter to reach the us value provided as an argument
 	HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_8);
 	while (__HAL_TIM_GET_COUNTER(&htim1) < us);
 	HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_7);
@@ -85,7 +87,7 @@ void Gen_PWM1(uint16_t us){
 void Gen_PWM2(uint16_t us){
 	__HAL_TIM_SET_COUNTER(&htim1,0); //reset the timer counter
 	HAL_TIM_Base_Start(&htim1); //start the timer
-	while (__HAL_TIM_GET_COUNTER(&htim1) < us-1);  // wait for the counter to reach the us value provided as an argument
+	while (__HAL_TIM_GET_COUNTER(&htim1) < us-10);  // wait for the counter to reach the us value provided as an argument
 	HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_7);
 	while (__HAL_TIM_GET_COUNTER(&htim1) < us);
 	HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_8);
@@ -93,35 +95,35 @@ void Gen_PWM2(uint16_t us){
 }
 
 void GenPWM (){
-	if(PWM_state == 0) {PWM_state = 1; Gen_PWM1(25);}
-	else {PWM_state = 0; Gen_PWM2(25);}
+	if(PWM_state == 0) {PWM_state = 1; Gen_PWM1(15);}
+	else {PWM_state = 0; Gen_PWM2(15);}
 }
 
-void CheckTemperature(uint16_t min, uint16_t max, uint16_t curr){
-
-	if(curr > max){
-		heating = 2;}
-	if(heating == 2) {
-		if(curr < max) {
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);}
+void CheckTemperature(uint16_t min, uint16_t max, uint16_t absmax, uint16_t curr){
+	if(heating > 4) {
+		if(heating == 6) {heating = 0; return;}
+		if(heating == 5) {heating = 10;}
+		if(curr < absmax) {
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);}
+		else{
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
-			if(tmp < (max-min)*0.25+min){heating = 1;}
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);}
+			if(tmp < (max-min)*0.25+min){heating--;}
 			return;
 		}
-	GenPWM();
+	if(curr > max){
+			heating++;}
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_SET);
 	if(curr < min){
-		heating = 0;
 		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);}
 	else{
-		heating = 1;
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);}
@@ -137,7 +139,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	initialise_monitor_handles();
+//	initialise_monitor_handles();
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -206,29 +208,74 @@ HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
 //	  PWM
 
 
-
 //	  ADC INPUT CODE
+//	  HAL_ADC_Start(&hadc1);
+//	  HAL_ADC_PollForConversion(&hadc1, 100);
+//	  tmp = HAL_ADC_GetValue(&hadc1);
+//	  printf("%hu \n", tmp);
+//	  HAL_ADC_Stop(&hadc1);
+//	  HAL_Delay(500);
+
+//	  PWM
+//	  if(PWM_state == 0) {PWM_state = 1; Gen_PWM1(25);}
+//	  else {PWM_state = 0; Gen_PWM2(25);}
+
+
+//	  BUTTON PUSH PWM
+//	  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13)) {
+//		  button_state = 1;
+//	  }
+//	  else {
+//		  	  if(button_state == 1) {
+//			 HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+//			 if(PWM_button == 0) {PWM_button = 1;}
+//			 else {PWM_button = 0;}
+//			 button_state = 0;
+//		 }
+//	 }
+//	  if(PWM_button == 1){
+//		  if(PWM_state == 0) {PWM_state = 1; Gen_PWM1(23);}
+//		  else {PWM_state = 0; Gen_PWM2(23);}
+//	  }
+
 	  HAL_ADC_Start(&hadc1);
 	  HAL_ADC_PollForConversion(&hadc1, 100);
 	  tmp = HAL_ADC_GetValue(&hadc1);
-//	  printf("Temperature: %hu \r\n", tmp);
+//	  if(tmp < 13795)
+//	  {
+//		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+//		  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_SET);
+//		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+//	  }
+//	  else{
+//		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+//		  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_RESET);
+//		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+//	  }
 	  HAL_ADC_Stop(&hadc1);
-//	  HAL_Delay(500);
 
 
 	  if(HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_14)) {
-		  GenPWM();
+//		  GenPWM();
+		  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_SET);
 		  if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14)) {
-			  printf("Cut On \n");
-			  CheckTemperature(20000, 30000, tmp);
+//			  printf("Cut On \n");
+			  CheckTemperature(22855, 25121, 45509, tmp);
+//			  CheckTemperature(40978, 43244, 45509, tmp);
 		  }
 		  else{
-			  printf("Coag On \n");
-			  CheckTemperature(11000, 20000, tmp);}
+//			  printf("Coag On \n");
+//			  CheckTemperature(14927, 21723, tmp);
+			  CheckTemperature(14927, 16000, 21723, tmp);}
 	  }
 	  else{
-		  printf("System Off \n");}
-
+//		  printf("System Off \n");
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);}
+//
   }
 
   /* USER CODE END 3 */
@@ -608,15 +655,11 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_14, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_1, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -632,15 +675,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0 PB14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_14;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PE7 PE8 PE1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_1;
+  /*Configure GPIO pins : PE7 PE8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
